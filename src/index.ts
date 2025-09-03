@@ -1,5 +1,3 @@
-import fs from "fs";
-import path from "path";
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 
@@ -19,12 +17,7 @@ interface Pair {
   volumeUSD: string;
 }
 
-interface DexFile {
-  data: {
-    pairs?: Pair[];
-    pools?: Pair[];
-  };
-}
+
 
 // === Enhanced types for better type safety ===
 interface TokenInfo {
@@ -60,14 +53,9 @@ const BATCH_CONFIG = {
   FLUSH_INTERVAL_MS: 1000      // Flush every 1 second
 } as const;
 
-// === Constant for JSON folder path ===
-// Example: "./jsondata"
-const JSON_FOLDER = "/Volumes/Resource/Project/Git/arbitrageCheck/00_PreData/DexPoolData";
-
-// Extract dex type from filename (e.g., "uniswapV3-10.json" → "uniswapV3")
-function getDexTypeFromFile(fileName: string): string {
-  return fileName.split("-")[0];
-}
+// === Constants ===
+// WETH (Wrapped Ether) contract address on Ethereum mainnet  
+const WETH_ADDRESS = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2".toLowerCase(); // Correct WETH address
 
 // === Utility to determine swap direction ===
 function isForwardSwap(from: string, pool: Pair): boolean {
@@ -118,12 +106,11 @@ async function findArbitragePaths(db: any) {
     // === Batch processing buffers ===
     const pathBatch: ArbitragePath[] = [];
     const stepBatch: ArbitrageStep[] = [];
-    let nextPathId = 1; // Track path IDs for batch insertion
 
     // === Mutex for preventing concurrent batch flushes ===
     let isFlushingBatch = false;
 
-    // Recursive DFS function to find cycles with synchronous batch processing
+    // Recursive DFS function to find cycles - optimized for WETH-only paths
     async function dfs(start: string, current: string, visitedPools: Set<string>, pathTokens: string[], pathPools: string[]): Promise<void> {
       if (pathTokens.length > maxDepth) return;
 
@@ -140,12 +127,12 @@ async function findArbitragePaths(db: any) {
         const newPathPools = [...pathPools, pool];
 
         if (toToken === start && newPathTokens.length >= minDepth + 1) {
-          // Found a valid arbitrage cycle - add to batch instead of immediate insert
+          // Found a valid arbitrage cycle - no need to check WETH here since we only start with WETH
           addPathToBatch(newPathTokens, newPathPools);
           pathsFound++;
 
           if (pathsFound % 1000 === 0) {
-            console.log(`📈 Found ${pathsFound} arbitrage paths so far... (Batch: ${pathBatch.length} paths pending)`);
+            console.log(`📈 Found ${pathsFound} WETH arbitrage paths so far... (Batch: ${pathBatch.length} paths pending)`);
           }
 
           // Simple synchronous batch processing - wait when batch is full
@@ -167,7 +154,7 @@ async function findArbitragePaths(db: any) {
 
     // === Batch processing functions ===
 
-    // Add path to batch buffer instead of immediate DB insertion
+    // Add WETH arbitrage path to batch buffer - no validation needed since we only call from WETH paths
     function addPathToBatch(pathTokens: string[], pathPools: string[]) {
       const length = pathTokens.length - 1; // number of steps
 
@@ -183,7 +170,7 @@ async function findArbitragePaths(db: any) {
 
       const swapPath = symbols.join("-");
 
-      // Add path to batch (without pre-assigned ID)
+      // Add path to batch
       pathBatch.push({
         tokens: pathTokens,
         pools: pathPools,
@@ -191,7 +178,10 @@ async function findArbitragePaths(db: any) {
         swapPath
       });
 
-      // Note: Steps will be generated after paths are inserted and we have real IDs
+      // Log first few paths for verification
+      if (pathBatch.length <= 5) {
+        console.log(`✅ WETH Arbitrage Path ${pathBatch.length}: ${swapPath}`);
+      }
     }
 
     // Flush batches to database with proper ID mapping
@@ -316,25 +306,67 @@ async function findArbitragePaths(db: any) {
       }
     }, BATCH_CONFIG.FLUSH_INTERVAL_MS);
 
-    // Start DFS from every token with progress tracking and batch processing
-    console.log(`🚀 Starting DFS from ${tokens.length} tokens with batch processing...`);
+    // Debug: Show all tokens that might be WETH
+    console.log("🔍 Searching for WETH token...");
+    console.log(`Target WETH address: ${WETH_ADDRESS}`);
+
+    // Find WETH token in the database - optimized lookup
+    console.log(`🎯 Looking for WETH token at address: ${WETH_ADDRESS}`);
+
+    let wethToken = tokens.find((token: TokenInfo) => token.address.toLowerCase() === WETH_ADDRESS);
+
+    // If not found with exact address, try to find by symbol as fallback
+    if (!wethToken) {
+      console.warn(`⚠️  WETH not found at expected address: ${WETH_ADDRESS}`);
+      console.log("🔍 Trying to find WETH by symbol...");
+
+      wethToken = tokens.find((token: TokenInfo) =>
+        token.symbol && token.symbol.toLowerCase() === 'weth'
+      );
+
+      if (wethToken) {
+        console.log(`✅ Found WETH by symbol: ${wethToken.symbol} at ${wethToken.address}`);
+      } else {
+        // Debug: Show ETH-related tokens for troubleshooting
+        const ethTokens = tokens.filter((token: TokenInfo) =>
+          token.symbol && token.symbol.toLowerCase().includes('eth')
+        ).slice(0, 5);
+        console.log("🔍 ETH-related tokens found:", ethTokens.map((t: TokenInfo) => ({
+          address: t.address,
+          symbol: t.symbol
+        })));
+      }
+    }
+
+    if (!wethToken) {
+      console.error(`❌ WETH token not found in database`);
+      console.log("📊 Total tokens in database:", tokens.length);
+      throw new Error("WETH token not found in database - ensure WETH token data is loaded");
+    }
+
+    // Validate WETH token has connections before starting DFS
+    const wethConnections = adjMap.get(wethToken.address);
+    if (!wethConnections || wethConnections.length === 0) {
+      console.error(`❌ WETH token has no pool connections: ${wethToken.address}`);
+      throw new Error("WETH token has no liquidity pools - cannot find arbitrage paths");
+    }
+
+    console.log(`🎯 Found WETH token: ${wethToken.symbol} at ${wethToken.address}`);
+    console.log(`🔗 WETH has ${wethConnections.length} pool connections`);
+    console.log(`🚀 Starting arbitrage path discovery from WETH token only...`);
 
     try {
-      for (let i = 0; i < tokens.length; i++) {
-        const token = tokens[i];
+      // Only search for arbitrage paths starting and ending with WETH
+      // WETH validation is done here at entry point - much more efficient than checking in DFS recursion
+      console.log(`🔄 Processing WETH arbitrage paths...`);
+      console.log(`📊 Current batch sizes - Paths: ${pathBatch.length}, Steps: ${stepBatch.length}`);
 
-        if (i % 100 === 0) {
-          console.log(`🔄 Processing token ${i + 1}/${tokens.length}: ${token.symbol || token.address}`);
-          console.log(`📊 Current batch sizes - Paths: ${pathBatch.length}, Steps: ${stepBatch.length}`);
-        }
+      await dfs(wethToken.address, wethToken.address, new Set(), [wethToken.address], []);
 
-        await dfs(token.address, token.address, new Set(), [token.address], []);
-
-        // Simple batch check after each token (synchronous)
-        if (!isFlushingBatch && pathBatch.length >= BATCH_CONFIG.PATHS_BATCH_SIZE) {
-          console.log(`💾 Token ${i + 1} completed, processing batch (${pathBatch.length} paths)...`);
-          await checkAndFlushBatches();
-        }
+      // Final batch check after WETH processing
+      if (!isFlushingBatch && pathBatch.length >= BATCH_CONFIG.PATHS_BATCH_SIZE) {
+        console.log(`� FWETH processing completed, processing batch (${pathBatch.length} paths)...`);
+        await checkAndFlushBatches();
       }
 
       // Clear the periodic flush interval
@@ -346,7 +378,7 @@ async function findArbitragePaths(db: any) {
         await flushBatches(true);
       }
 
-      console.log(`✅ Arbitrage path discovery completed. Found ${pathsFound} total paths.`);
+      console.log(`✅ WETH arbitrage path discovery completed. Found ${pathsFound} total WETH→...→WETH paths.`);
 
     } catch (error) {
       clearInterval(flushInterval);
