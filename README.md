@@ -25,12 +25,25 @@ src/
 - **Batch Processing**: Efficient database operations with configurable batch sizes
 - **Memory Management**: Smart caching and batch flushing to prevent memory overflow
 - **Concurrent Safety**: Mutex patterns to prevent race conditions
+- **Liquidity Management**: Smart contract integration for pool liquidity validation
 - **Enterprise Architecture**: Clean separation of concerns following SOLID principles
 
 ## 📦 Installation
 
 ```bash
 npm install
+```
+
+## ⚙️ Environment Setup
+
+1. Copy the environment template:
+```bash
+cp .env.example .env
+```
+
+2. Edit `.env` and add your Infura API key:
+```bash
+INFURA_API_KEY=your_infura_api_key_here
 ```
 
 ## 🔧 Usage
@@ -48,6 +61,15 @@ npm run find-paths
 
 # Run complete pipeline (load data + find paths)
 npm run full-pipeline
+
+# Clean pools with low liquidity only
+npm run clean-liquidity
+
+# Clean isolated pools only (tokens appearing in only one pool)
+npm run clean-isolated
+
+# Comprehensive cleanup (both isolated and low liquidity pools)
+npm run clean-all
 
 # Show help
 npm run cli help
@@ -94,7 +116,7 @@ export const ARBITRAGE_CONFIG = {
 
 The application uses SQLite with the following tables:
 
-- `tbl_dex_token`: Token information (address, symbol, name, decimals)
+- `tbl_dex_token`: Token information (address, symbol, name, decimal)
 - `tbl_dex_pool`: Pool information (DEX type, pool address, token pairs)
 - `tbl_dex_arbitrage_path`: Discovered arbitrage paths
 - `tbl_dex_arbitrage_step`: Individual steps within each path
@@ -105,7 +127,63 @@ The application uses SQLite with the following tables:
 2. **Graph Construction**: Builds an adjacency map of token connections through pools
 3. **WETH Discovery**: Locates WETH token and validates it has pool connections
 4. **Path Finding**: Uses DFS to find cycles starting and ending with WETH
-5. **Batch Processing**: Efficiently stores discovered paths using batch operations
+5. **Liquidity Validation**: Checks pool liquidity using deployed smart contracts
+6. **Batch Processing**: Efficiently stores discovered paths using batch operations
+
+## 🧹 Liquidity Management
+
+The application includes advanced liquidity management features:
+
+- **Smart Contract Integration**: Uses deployed view contracts to check pool reserves
+- **Batch Liquidity Checks**: Processes up to 800 pools per batch for efficiency
+- **Multi-DEX Support**: Works with Uniswap V2 and SushiSwap V2 protocols (V3 excluded due to different architecture)
+- **Low Liquidity Detection**: Identifies pools with token balances below threshold
+- **Automated Cleanup**: Option to remove low liquidity pools from database
+
+### Usage
+
+```bash
+# Clean low liquidity pools only
+npm run clean-liquidity
+
+# Clean isolated pools only (tokens appearing in only one pool)
+npm run clean-isolated
+
+# Comprehensive cleanup (both isolated and low liquidity pools)
+npm run clean-all
+
+# Check specific token usage across all DEX types
+npm run check-token 0x269616d549d7e8eaa82dfb17028d0b212d11232a
+
+# Or use CLI directly
+npm run cli clean-liquidity   # Clean low liquidity pools only
+npm run cli clean-isolated    # Clean isolated pools only
+npm run cli clean-all         # Clean both types
+npm run cli check-token <address>  # Check token usage
+
+**⚠️ WARNING:** Pool deletion is now ENABLED. These commands will permanently remove pools from the database.
+```
+
+The system will:
+1. Fetch Uniswap V2 and SushiSwap V2 pool addresses with token information from database
+2. Check liquidity in batches of 500 pools using smart contracts
+3. Consider token decimal when calculating actual token balances
+4. Apply different thresholds based on token symbols:
+   - BTC tokens: < 0.3 token units
+   - ETH tokens: < 5 token units  
+   - Other tokens: < 10,000 token units
+5. Delete pools that don't meet minimum liquidity requirements
+5. Log all low liquidity pools with both wei and decimal-adjusted balances
+6. Optionally remove them from database
+
+### Key Features:
+- **V2 Protocol Focus**: Only processes Uniswap V2 and SushiSwap V2 pools (V3 excluded)
+- **Decimal-Aware**: Properly handles different token decimal (e.g., USDC has 6 decimal, WETH has 18)
+- **Smart Thresholds**: Different minimum balance thresholds for BTC/ETH vs other tokens
+- **Smart Contract Integration**: Uses deployed view contracts for efficient batch queries
+- **Isolated Pool Detection**: Removes pools with tokens that appear in only one pool (cannot participate in circular arbitrage)
+- **Environment Configuration**: Secure API key management through environment variables
+- **Comprehensive Logging**: Shows both raw wei values and human-readable token amounts
 
 ## 🎯 Key Optimizations
 

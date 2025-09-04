@@ -1,5 +1,5 @@
 import { Database } from 'sqlite';
-import { ArbitragePath, ArbitrageStep, PoolInfo } from '../types';
+import { ArbitragePath, PoolInfo } from '../types';
 import { BATCH_CONFIG } from '../config/constants';
 
 /**
@@ -117,7 +117,7 @@ export class BatchProcessor {
           [path.length, path.swapPath]
         );
 
-        const realPathId = pathResult.lastID;
+        const realPathId = pathResult.lastID ?? 0;
 
         // Generate steps for this path
         const steps = this.generateStepsForPath(path, realPathId);

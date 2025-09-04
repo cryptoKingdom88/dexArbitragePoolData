@@ -25,14 +25,14 @@ export class ArbitrageFinderService {
 
     await this.loadDataFromDatabase();
     await this.buildAdjacencyMap();
-    
+
     const wethToken = await this.findWethToken();
     await this.validateWethConnections(wethToken);
 
     console.log(`🚀 Starting WETH arbitrage path discovery...`);
-    
+
     await this.batchProcessor.initialize();
-    
+
     try {
       await this.dfs(
         wethToken.address,
@@ -43,7 +43,7 @@ export class ArbitrageFinderService {
       );
 
       await this.batchProcessor.finalize();
-      
+
       console.log(`✅ WETH arbitrage path discovery completed. Found ${this.pathsFound} total paths.`);
       return this.pathsFound;
 
@@ -93,13 +93,13 @@ export class ArbitrageFinderService {
       }
 
       // Add bidirectional edges
-      this.adjMap.get(pool.token0)!.push({ 
-        pool: pool.pool_address, 
-        toToken: pool.token1 
+      this.adjMap.get(pool.token0)!.push({
+        pool: pool.pool_address,
+        toToken: pool.token1
       });
-      this.adjMap.get(pool.token1)!.push({ 
-        pool: pool.pool_address, 
-        toToken: pool.token0 
+      this.adjMap.get(pool.token1)!.push({
+        pool: pool.pool_address,
+        toToken: pool.token0
       });
     }
 
@@ -113,8 +113,8 @@ export class ArbitrageFinderService {
     console.log(`🎯 Looking for WETH token at address: ${ARBITRAGE_CONFIG.WETH_ADDRESS}`);
 
     const tokens = await this.db.all<TokenInfo[]>('SELECT address, symbol FROM tbl_dex_token');
-    
-    let wethToken = tokens.find(token => 
+
+    let wethToken = tokens.find(token =>
       token.address.toLowerCase() === ARBITRAGE_CONFIG.WETH_ADDRESS
     );
 
@@ -122,8 +122,8 @@ export class ArbitrageFinderService {
     if (!wethToken) {
       console.warn(`⚠️  WETH not found at expected address: ${ARBITRAGE_CONFIG.WETH_ADDRESS}`);
       console.log('🔍 Trying to find WETH by symbol...');
-      
-      wethToken = tokens.find(token => 
+
+      wethToken = tokens.find(token =>
         token.symbol && token.symbol.toLowerCase() === 'weth'
       );
 
@@ -144,7 +144,7 @@ export class ArbitrageFinderService {
    */
   private async validateWethConnections(wethToken: TokenInfo): Promise<void> {
     const wethConnections = this.adjMap.get(wethToken.address);
-    
+
     if (!wethConnections || wethConnections.length === 0) {
       throw new Error('WETH token has no liquidity pools - cannot find arbitrage paths');
     }

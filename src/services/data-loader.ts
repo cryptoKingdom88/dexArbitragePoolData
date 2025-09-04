@@ -76,13 +76,13 @@ export class DataLoaderService {
   private async insertTokens(pair: Pair): Promise<void> {
     // Insert token0
     await this.db.run(
-      `INSERT OR IGNORE INTO tbl_dex_token (address, name, symbol, decimals) VALUES (?, ?, ?, ?)`,
+      `INSERT OR IGNORE INTO tbl_dex_token (address, name, symbol, decimal) VALUES (?, ?, ?, ?)`,
       [pair.token0.id, pair.token0.name, pair.token0.symbol, pair.token0.decimals]
     );
 
     // Insert token1
     await this.db.run(
-      `INSERT OR IGNORE INTO tbl_dex_token (address, name, symbol, decimals) VALUES (?, ?, ?, ?)`,
+      `INSERT OR IGNORE INTO tbl_dex_token (address, name, symbol, decimal) VALUES (?, ?, ?, ?)`,
       [pair.token1.id, pair.token1.name, pair.token1.symbol, pair.token1.decimals]
     );
   }

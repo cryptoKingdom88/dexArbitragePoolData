@@ -42,7 +42,7 @@ export class DatabaseSchema {
         address TEXT UNIQUE NOT NULL,
         name TEXT,
         symbol TEXT,
-        decimals TEXT
+        decimal TEXT
       );
     `);
 

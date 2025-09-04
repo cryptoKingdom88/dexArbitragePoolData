@@ -11,6 +11,14 @@
     "load-data": "ts-node src/cli.ts load-data",
     "find-paths": "ts-node src/cli.ts find-paths",
     "full-pipeline": "ts-node src/cli.ts full-pipeline",
+    "clean-liquidity": "ts-node src/cli.ts clean-liquidity",
+    "clean-isolated": "ts-node src/cli.ts clean-isolated",
+    "clean-all": "ts-node src/cli.ts clean-all",
+    "test-isolated": "ts-node src/test-isolated-pools.ts",
+    "check-token": "ts-node src/cli.ts check-token",
+    "debug-liquidity": "ts-node src/debug/debug-liquidity.ts",
+    "example-liquidity": "ts-node src/examples/liquidity-example.ts",
+    "test-simple-liquidity": "ts-node src/utils/simple-liquidity-test.ts",
     "lint": "eslint . --ext .ts",
     "db:reset": "ts-node src/resetDb.ts"
   },
@@ -24,6 +32,8 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "dotenv": "^16.6.1",
+    "ethers": "^6.15.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7"
   }
