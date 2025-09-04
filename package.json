@@ -7,6 +7,10 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
+    "cli": "ts-node src/cli.ts",
+    "load-data": "ts-node src/cli.ts load-data",
+    "find-paths": "ts-node src/cli.ts find-paths",
+    "full-pipeline": "ts-node src/cli.ts full-pipeline",
     "lint": "eslint . --ext .ts",
     "db:reset": "ts-node src/resetDb.ts"
   },
