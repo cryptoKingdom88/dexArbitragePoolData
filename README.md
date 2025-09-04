@@ -155,6 +155,9 @@ npm run clean-all
 # Check specific token usage across all DEX types
 npm run check-token 0x269616d549d7e8eaa82dfb17028d0b212d11232a
 
+# Debug arbitrage path discovery (test WETH repetition prevention)
+npm run debug-arbitrage
+
 # Or use CLI directly
 npm run cli clean-liquidity   # Clean low liquidity pools only
 npm run cli clean-isolated    # Clean isolated pools only
@@ -182,6 +185,7 @@ The system will:
 - **Smart Thresholds**: Different minimum balance thresholds for BTC/ETH vs other tokens
 - **Smart Contract Integration**: Uses deployed view contracts for efficient batch queries
 - **Isolated Pool Detection**: Removes pools with tokens that appear in only one pool (cannot participate in circular arbitrage)
+- **WETH Repetition Prevention**: Ensures WETH only appears at start and end of arbitrage paths, preventing redundant cycles
 - **Environment Configuration**: Secure API key management through environment variables
 - **Comprehensive Logging**: Shows both raw wei values and human-readable token amounts
 

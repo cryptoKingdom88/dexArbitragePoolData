@@ -165,6 +165,12 @@ export class ArbitrageFinderService {
   ): Promise<void> {
     if (pathTokens.length > ARBITRAGE_CONFIG.MAX_DEPTH) return;
 
+    if (current == ARBITRAGE_CONFIG.WETH_ADDRESS &&
+      pathTokens.length > 1 &&
+      pathTokens.length < ARBITRAGE_CONFIG.MAX_DEPTH) {
+      return;
+    }
+
     const edges = this.adjMap.get(current);
     if (!edges) return;
 

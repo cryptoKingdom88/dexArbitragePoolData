@@ -16,6 +16,7 @@
     "clean-all": "ts-node src/cli.ts clean-all",
     "test-isolated": "ts-node src/test-isolated-pools.ts",
     "check-token": "ts-node src/cli.ts check-token",
+    "debug-arbitrage": "ts-node src/debug/debug-arbitrage-paths.ts",
     "debug-liquidity": "ts-node src/debug/debug-liquidity.ts",
     "example-liquidity": "ts-node src/examples/liquidity-example.ts",
     "test-simple-liquidity": "ts-node src/utils/simple-liquidity-test.ts",
